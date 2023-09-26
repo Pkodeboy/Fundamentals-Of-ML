@@ -1,0 +1,210 @@
+---
+title: "Assignment_4"
+author: "Pranay Kumar Kodeboyina"
+date: "`r Sys.Date()`"
+output:
+  word_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+
+#install.packages("flexclust")
+#install.packages("cluster")
+#install.packages("tidyverse")
+#install.packages("factoextra")
+#install.packages("FactoMineR")
+#install.packages("ggcorrplot")
+
+library(tinytex)
+library(flexclust)
+library (cluster)
+library (tidyverse)
+library (factoextra)
+library (FactoMineR)
+library(ggcorrplot)
+```
+```{r}
+library(readr)
+
+#Extracting the current working directory
+getwd()
+Pharma<-read_csv("/Users/kodeboyina/Documents/Kent State/Sem1/Fundamentals of ML/Assignment4/Pharmaceuticals.csv")
+View(Pharma)
+```
+
+```{r}
+#Transpose of a matrix
+t(t(names(Pharma)))
+
+#summary Of the Data
+summary(Pharma)
+```
+
+```{r}
+#Question A Use only the numerical variables (1 to 9) to cluster the 21 firms. Justify the various choices made in conducting the cluster analysis, such as weights for different variables, the specific clustering algorithm(s) used, the number of clusters formed, and so on.
+set.seed(123)
+Pharma1<-Pharma[,3:11]
+t(t(names(Pharma1)))
+```
+
+#Using Euclidean distance formula which is given by
+$d = \sqrt    {(x_2-x_1)^2 + (y_2-y_1)^2} $
+
+```{r}
+
+
+## Normalizing the data frame
+Pharma2<-scale(Pharma1)
+Dist_Pharma<-get_dist(Pharma2, method = "euclidean", stand = FALSE)
+
+#Visualizing the distance metrics to identify the clusters and distance from each metric
+fviz_dist(Dist_Pharma, order = FALSE, show_labels = TRUE, lab_size = NULL, gradient = list(low = "red", mid = "white", high = "blue"))
+
+```
+
+```{r}
+#In order determine the optimal value of k, employing different methods to determine k
+pharma_elbow <- scale(Pharma1)
+fviz_nbclust(pharma_elbow, kmeans, method = "wss") +labs(subtitle = "Elbow Method To Determine Optimal Value of K")
+
+pharma_Silhouette <- scale(Pharma1)
+fviz_nbclust(pharma_Silhouette, kmeans, method = "silhouette") + labs(subtitle = "Silhouette Method To Determine Optimal Value of K")
+
+pharma_gap_stat <- scale(Pharma1)
+fviz_nbclust(pharma_gap_stat, kmeans, method = "gap_stat") + labs(subtitle = "Gap Stat Method To Determine Optimal Value of K")
+
+##In this case, we have three different recommendations for the optimal value of K: K=5 from the elbow and silhouette methods, and K=1 from the gap statistic method. The final value of K = 5 from the above two methods it also depends on the additional factors such as interpretability, computational efficiency, and the stability of the clustering solution.
+
+```
+
+```{r}
+correlation <- cor(Pharma2)
+
+#correlation matrix plot using the correlation matrix.
+ggcorrplot(correlation, outline.color = "grey50", lab = TRUE, hc.order = TRUE, type = "full")
+```
+
+```{r}
+set.seed(123)
+kmean <- kmeans(Pharma2, centers = 5, nstart = 25)
+
+
+## Below finding cluster center for all rows and colomns
+kmean$centers
+```
+
+```{r}
+## Number of observation in each cluster
+
+kmean$size
+```
+
+
+```{r}
+## Observation and their respective cluster label.
+kmean$cluster[c(1:21)]
+```
+
+```{r}
+##For the above observations applyng the K means clustering to visualize the 5 clusters
+fviz_cluster(kmean, data=Pharma2) + labs(subtitle = "K means clustering to visualize the 5 clusters")
+kmean
+## On the cluster graph above, we can see that there are 5 clusters, each with its own color and shape. The center of the cluster is the centriod or the center point. We have reached the final center points after 25 restarts as there is no change until and unless the new data is added.
+```
+
+
+
+```{r}
+
+library(cluster)
+kmean2 <- kmeans(Pharma2,5)
+clusplot(Pharma2, kmean2$cluster, color=TRUE, shade=TRUE, labels=2, lines=0, main="Cluster Plot for Pharma Variables")
+```
+
+
+```{r}
+#Question B. Interpret the clusters with respect to the numerical variables used in forming the clusters.
+
+#Calculating the means of the clusters based o its components to intrepret the data set
+aggregate(Pharma2,by=list(kmean2$cluster),FUN=mean)
+
+```
+
+```{r}
+K <- data.frame(Pharma2, kmean2$cluster)
+view(K)
+K
+
+#From the above data interpreting the data based on the values
+
+#Clusters 1:- JNJ, MRK, GSK, PFE
+#(Highest Market_Cap and Highest Net_Proft_Margin, Highest ROE/ROA, Highest Asset_Turnover, Higheest Net_Profit_Margin)
+
+##Cluster 2:- AVE, ELN, IVX, MRX, WPI
+#(Highest Revenue Growth and lowest PE/Asset Turnover Ratio)
+
+#Cluster 3:- AGN,BAY, PHA
+#(Highest PE ratio and lowest ROE/ROA and Net_Profit_Margin)
+
+#Cluster 4:- CHTT
+#(Lowest Market_Cap, Highest Beta, Highest Levarage)
+
+#Cluster 5:- ABT, AHM, AZN, BMY, LLY, NVS, SGP, WYE
+# (Lowest Net_Proft_Margin and lowest Rev_Growth)
+
+```
+
+
+```{r}
+#Question C. Is there a pattern in the clusters with respect to the numerical variables (10 to 12)? (those not used in forming the clusters)
+
+#To examine the patterns by visualizing clusters against the variables grouped by clusters and to identify any trends in the data
+# Pharma is the original dataset and df1 is the subset of df
+# col 12,13 and 14 are the col of 10,11 and 12 of the subset of df
+pattern <- Pharma %>% select(c(12,13,14)) %>% mutate(Cluster = kmean2$cluster)
+print(pattern)
+
+view(pattern)
+
+ggplot(pattern, mapping = aes(factor(Cluster), fill=Median_Recommendation)) + geom_bar(position = 'dodge') + labs(x='Clusters', y='Frequency')
+
+ggplot(pattern, mapping = aes(factor(Cluster), fill=Location)) + geom_bar(position = 'dodge') + labs(x='Clusters', y='Frequency')
+
+ggplot(pattern, mapping = aes(factor(Cluster), fill=Exchange)) + geom_bar(position = 'dodge') + labs(x='Clusters', y='Frequency')
+
+#Based on the recommendation there is a pattern in the data
+
+#Cluster 1 Offers Moderate buy medians, as well as a different count from the US, but the businesses are evenly dispersed on the NASDAQ.
+
+#Cluster 2 Offers Hold, Moderate Buy, Moderate Sell medians, as well as a different count from the France, Ireland & US, but the businesses are evenly dispersed on the AMEX & NASDAQ.
+
+#Cluster 3 Offers High Hold, Moderate Buy/Sell, Strong Buy medians, as well as a different count from the Switzerland, UK & US, but the businesses are evenly dispersed on the NYSE.
+
+#Cluster 4 Offers Hold, Moderate Buy medians, as well as a different count from the Germany, Canada & US, but the businesses are evenly dispersed on the NYSE.
+
+#Cluster 5 Offers Hold, Moderate Buy/Sell, Strong Buy medians, as well as a different count from the UK & US, but the businesses are evenly dispersed on the NYSE.
+
+```
+
+
+```{r}
+## Question D. Provide an appropriate name for each cluster using any or all of the variables in the dataset.
+
+#Cluster 1: Moderate Buy and Highest Market Cap
+
+#Cluster 2: Moderate Buy/Sell and Highest Revenue Growth 
+
+#Cluster 3: High Hold and Highest PE ratio
+
+#Cluster 4: Moderate Hold and Lowest Market_Cap
+
+#Cluster 5: Hold/Moderate Buy and Lowest Net_Proft_Margin
+
+```
+

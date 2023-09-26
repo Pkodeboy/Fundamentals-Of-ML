@@ -1,0 +1,222 @@
+---
+title: "Assignment 2"
+author: "Pranay Kumar Kodeboyina"
+date: "`r Sys.Date()`"
+output: word_document
+---
+
+```{r}
+# importing the libraries and including caret package
+library("caret")
+
+# Loading required library: ISLR
+library('ISLR')
+
+# Loading required library: dplyr
+library('dplyr')
+
+# Loading required library: class
+library('class')
+
+#Extracting the current working directory
+getwd()
+
+#setting the working directory to the Assignment Folder
+setwd("/Users/kodeboyina/Documents/Kent State/Sem1/Fundamentals of ML")
+
+#Loading Universal csv data Import the data set into R
+UniBank.df <- read.csv("Assignment2/data/UniversalBank.csv", header = TRUE, sep = ",", stringsAsFactors = FALSE)
+
+#Converting the "Education" and "Personal Loan" variable to a factor value that responses as "yes" or "no."
+UniBank.df$Education = as.factor(UniBank.df$Education)
+UniBank.df$Personal.Loan <- factor(UniBank.df$Personal.Loan,levels=c('0','1'),labels=c('No','Yes'))
+
+#Drop ID and Zip Code columns(classification with all predictors except ID and ZIP code) 
+UniBank.df$ID <- NULL
+UniBank.df$ZIP.Code <- NULL
+
+#Observing the first 10 observations of the data set post removing ID and ZIP code
+head(UniBank.df, n=10L)
+
+#Priniting the Structure of the data post removing the ID and Zip Code
+str(UniBank.df)
+
+#Summary of data for the observations
+summary(UniBank.df)
+
+#Creating Dummy columns for the Education data and spliting them into 3 columns "Education_1 to _3" using Ifelse loop . 
+UniBank.df$Education_1 <- ifelse(UniBank.df$Education == 1, 1, 0)
+UniBank.df$Education_2 <- ifelse(UniBank.df$Education == 2, 1, 0)
+UniBank.df$Education_3 <- ifelse(UniBank.df$Education == 3, 1, 0)
+
+#Dropping the Original education data post creation of the dummy columns
+UniBank.df$Education <- NULL
+
+#Displaying the names of the data columns post columns
+names(UniBank.df)
+
+#Randomization of the data and setting same random sequence
+set.seed(123)
+
+## Seperating 60% of data as Training set and remaining 40% as validation set
+train.index <-sample(row.names(UniBank.df), 0.6*dim(UniBank.df)[1])
+valid.index <-setdiff(row.names(UniBank.df), train.index)                                       
+
+#Assigning the data interms of indexes to tain and Validation sets
+train_data <- UniBank.df[train.index,]
+val_data <- UniBank.df[valid.index,]
+
+#Creating New Customer data and passing the value as integer for calculations in Euclidean Distances
+new_cust = data.frame(Age = as.integer(40), Experience = as.integer(10), Income = as.integer(84), Family = as.integer(2), CCAvg = as.integer(2), Mortgage = as.integer(0), Securities.Account = as.integer(0), CD.Account = as.integer(0), Online = as.integer(1), CreditCard = as.integer(1), Education_1 = as.integer(0), Education_2 = as.integer(1), Education_3 = as.integer(0))
+
+#Displaying the names of the New customer data
+names(new_cust)
+
+# Copy the original data to Normalization data frame to perform normalization
+train_norm_df <- train_data
+Val_norm_df <- val_data
+new_cust_df <- new_cust
+
+
+# use preProcess() from the caret package to normalize data using center scale method
+norm.values <- preProcess(train_data[, 1:6], method=c("center", "scale"))
+
+#Normalizing the Training data for the first 6 columns(As Other columns are already Normalized) 
+train_norm_df[, 1:6] <- predict(norm.values, train_data[, 1:6])
+
+# Replace first 6 columns with normalized values of Training and Validation data
+Val_norm_df[, 1:6] <- predict(norm.values, val_data[, 1:6])
+
+
+norm.valuestest <- preProcess(new_cust[, 1:5], method=c("center", "scale"))
+# Replace first 5 columns with normalized values of Training and Validation data (As Other columns are already Normalized)
+new_cust_df[, 1:5] <- predict(norm.valuestest, new_cust[, 1:5])
+
+
+#Summary of the Normalized training data 
+summary(train_norm_df)
+var(train_norm_df[, 1:6])
+
+#Summary of the Normalized Validation data 
+summary(Val_norm_df)
+var(Val_norm_df[, 1:6])
+
+#Summary of the Normalized New Customer data 
+summary(new_cust_df)
+
+
+
+#Question 1
+#KNN classification excluding the personal loan column and predicting the value of Personal Loan for K = 1
+new_norm_cust_pred <- class::knn(train= train_norm_df[,-c(7)], test = new_cust_df, cl= train_norm_df$Personal.Loan, k=1 , prob=TRUE)
+
+#calculate knn for customer prediction
+print(new_norm_cust_pred)
+#From the above observation the customer will not accept the loan offer from KNN classification using K = 1
+```
+
+```{r}
+#Question 2 Choice of K for the highest value of accuracy
+#What is a choice of k that balances between over fitting and ignoring the predictor information?
+# performing 10-fold cross-validation and initializing data frame with two columns: k, and accuracy.
+set.seed(11)
+Uni_Bank_Acc <- trainControl(method= "repeatedcv", number = 3, repeats = 2)
+searchGrid = expand.grid(k=1:10)
+knn_Predict = train(Personal.Loan~., data = train_norm_df, method = 'knn', tuneGrid = searchGrid,trControl = Uni_Bank_Acc)
+knn_Predict
+```
+
+```{r}
+
+#Question 3 Show the confusion matrix for the validation data that results from using the best k.
+
+knn_Predict_bank <- predict(knn_Predict,Val_norm_df)
+confusionMatrix(knn_Predict_bank,Val_norm_df$Personal.Loan)
+```
+
+```{r}
+#Question 4 Classifying the New customer with the best value of K = 3
+#KNN classification excluding the personal loan column and prediction the Value of Personal Loan for K = 3
+new_norm_cust_pred <- class::knn(train= train_norm_df[,-c(7)], test = new_cust_df, cl= train_norm_df$Personal.Loan, k=3 , prob=TRUE)
+
+#calculate knn for customer prediction for the best value of K i.e 3
+print(new_norm_cust_pred)
+#From the above observation the customer will not accept the loan offer from KNN classification using best value i.e K = 3
+```
+
+
+```{r}
+#Splitting the data in the format(50%: 30%: 20%)
+#Randomization Setting seed to generate the same random sequence
+set.seed(123)
+
+## Separating 50% of data as Training set and 30% as validation set and remaining 20% as Test set
+train.index <-sample(row.names(UniBank.df), 0.5*dim(UniBank.df)[1])
+valid.index <-sample(setdiff(row.names(UniBank.df), train.index), 0.3*dim(UniBank.df)[1])                                       
+test.index <-setdiff(row.names(UniBank.df),union(train.index,valid.index))
+
+#Assigning the data indexes to train, validation and test sets
+train_data <- UniBank.df[train.index,]
+val_data <- UniBank.df[valid.index,]
+Test_data <- UniBank.df[test.index,]
+
+#Creating New Customer data and passing the value as integer for calculations in Euclidean distance calculation
+new_cust = data.frame(Age = as.integer(40), Experience = as.integer(10), Income = as.integer(84), Family = as.integer(2), CCAvg = as.integer(2), Mortgage = as.integer(0), Securities.Account = as.integer(0), CD.Account = as.integer(0), Online = as.integer(1), CreditCard = as.integer(1), Education_1 = as.integer(0), Education_2 = as.integer(1), Education_3 = as.integer(0))
+
+#Displaying the names of the New customer data
+names(new_cust)
+
+# Copy the original data to Normalized data frame to perform normalization
+train_norm_df <- train_data
+Val_norm_df <- val_data
+Test_norm_df <- Test_data
+
+# use preProcess() from the caret package to normalize data using center scale method
+norm.values <- preProcess(train_data[, 1:6], method=c("center", "scale"))
+
+#Normalizing the Training data for the first 6 columns(Other columns are already Normalized) 
+train_norm_df[, 1:6] <- predict(norm.values, train_data[, 1:6])
+
+# Replace first 6 columns with normalized values of Validation data
+Val_norm_df[, 1:6] <- predict(norm.values, val_data[, 1:6])
+
+# Replace first 6 columns with normalized values of Test data
+Test_norm_df[, 1:6] <- predict(norm.values, Test_data[, 1:6])
+
+#Summary of the Normalized training data 
+summary(train_norm_df)
+var(train_norm_df[, 1:6])
+
+#Summary of the Normalized Validation data 
+summary(Val_norm_df)
+var(Val_norm_df[, 1:6])
+
+#Summary of the Normalized Test data 
+summary(Test_norm_df)
+var(Test_norm_df[, 1:6])
+
+
+## KNN prediction for Training Set of data
+knn_train_data <- knn(train=train_norm_df[,-c(7)],test=train_norm_df[,-c(7)],cl=train_norm_df[,c(7)], k=3, prob=TRUE)
+
+## KNN prediction for Vailidation Set of data
+knn_val_data<- knn(train=train_norm_df[,-c(7)],test=Val_norm_df[,-c(7)],cl=train_norm_df[,c(7)],k=3, prob=TRUE)
+
+## KNN prediction for Test Set of data
+knn_test_data<- knn(train=train_norm_df[,-c(7)],test=Test_norm_df[,-c(7)],cl=train_norm_df[,c(7)],k=3, prob=TRUE)
+
+#display the confusion matrices for Train data set
+confusionMatrix(knn_train_data,train_norm_df[,c(7)], positive="Yes")
+
+#display the confusion matrices for Validation data set
+confusionMatrix(knn_val_data,Val_norm_df[,c(7)], positive="Yes")
+
+#display the confusion matrices for Test data set
+confusionMatrix(knn_test_data,Test_norm_df[,c(7)], positive="Yes")
+
+#Upon Observation the accuracy levels are as as Training data set = 97.44%, Test data set 96.27% and Validation data set = 96%, It seems that the model has high relative accuracy, specificity and low sensitivity 
+#i.e This means the model is able to identify negative case more accurately than the positive cases.
+#i.e The accuracy levels of all the data sets are similar hence we can analyze that we have achieved the optimal value of K
+#i.e Overall, the model appears to perform well on all three datasets, with high accuracy and other evaluation metrics indicating good performance.
+
+```

@@ -1,0 +1,199 @@
+---
+title: "Assignment3 Naive Bayes Classification"
+author: "Pranay Kumar Kodeboyina"
+date: "`r Sys.Date()`"
+output: word_document
+---
+
+```{r}
+# importing the libraries and including caret package
+library("caret")
+
+# Loading required library: ISLR
+library('ISLR')
+
+# Loading required library: dplyr
+library('dplyr')
+
+# Loading required library: class
+library('class')
+
+# Loading required library: ggplot2
+library(ggplot2)
+
+# Loading required library: lattice
+library(lattice)
+
+# Loading required library: knitr
+library(knitr)
+
+# Loading required library: rmarkdown
+library(rmarkdown)
+
+# Loading required library: e1071
+library(e1071)
+
+
+#Extracting the current working directory
+getwd()
+
+#setting the working directory to the Assignment Folder
+setwd("/Users/kodeboyina/Documents/Kent State/Sem1/Fundamentals of ML/Assignment3")
+
+#Loading Universal csv data Import the data set into R
+UniBank.df <- read.csv("data/UniversalBank.csv", header = TRUE, sep = ",", stringsAsFactors = FALSE)
+```
+
+```{r}
+#Converting the "Education", "Personal Loan", "Credit Card" and "Online" variable to a factor value
+UniBank.df$Education = as.factor(UniBank.df$Education)
+UniBank.df$Personal.Loan <- factor(UniBank.df$Personal.Loan)
+UniBank.df$CreditCard <- as.factor(UniBank.df$CreditCard)
+UniBank.df$Online <- as.factor(UniBank.df$Online)
+
+
+#Drop ID and Zip Code columns(classification with all predictors except ID and ZIP code) 
+UniBank.df$ID <- NULL
+UniBank.df$ZIP.Code <- NULL
+
+#Observing the first 10 observations of the data set post removing ID and ZIP code
+head(UniBank.df, n=10L)
+
+#Priniting the Structure of the data post removing the ID and Zip Code
+str(UniBank.df)
+
+#Summary of data for the observations
+summary(UniBank.df)
+
+#Dropping the Original education data post creation of the dummy columns
+UniBank.df$Education <- NULL
+
+#Displaying the names of the data columns post columns
+names(UniBank.df)
+select.var <- c(8,11,12)
+
+#Randomization of the data and setting same random sequence
+set.seed(123)
+
+## Seperating 60% of data as Training set and remaining 40% as validation set
+train.index <-sample(row.names(UniBank.df), 0.6*dim(UniBank.df)[1])
+valid.index <-setdiff(row.names(UniBank.df), train.index)                                       
+
+#Assigning the data interms of indexes to tain and Validation sets
+train_data <- UniBank.df[train.index,]
+val_data <- UniBank.df[valid.index,]
+```
+
+```{r}
+#Question A. Create a pivot table for the training data with Online as a column variable, CC as a row variable, and Loan as a secondary row variable. The values inside the table should convey the count. In R use functions melt() and cast(), or function table().
+#In the resulting pivot table CC and LOAN are both rows, and online is a column.
+attach(train_data)
+##ftable is defined as "function table". 
+ftable(CreditCard,Personal.Loan,Online)
+detach(train_data)
+
+```
+```{r}
+#Question B. Consider the task of classifying a customer who owns a bank credit card and is actively using online banking services. Looking at the pivot table, what is the probability that this customer will accept the loan offer? [This is the probability of loan acceptance (Loan = 1) conditional on having a bank credit card (CC = 1) and being an active user of online banking services (Online = 1)].
+
+prop.table(ftable(train_data$CreditCard,train_data$Online,train_data$Personal.Loan),margin=1)
+
+#Manual caluculation
+prob <- 57/532
+
+
+cat("From the above observation the probability to accept loan with credit card and Online services is  ", prob, "and the probability percentage in 10.7%")
+
+```
+```{r}
+#Question C. Create two separate pivot tables for the training data. One will have Loan (rows) as a function of Online (columns) and the other will have Loan (rows) as a function of CC.
+
+attach(train_data)
+#Personal Loan (rows) as a function of CC (columns)
+ftable(Personal.Loan,CreditCard)
+
+
+#Personal Loan (rows) as a function of Online (columns)
+ftable(Personal.Loan,Online)
+
+detach(train_data)
+```
+```{r}
+#Question D. Compute the following quantities [P(A | B) means “the probability ofA given B”]:
+
+#Only passing the training data for the calculations
+attach(train_data)
+
+# Probability table for Personal Loan vs Credit card
+prop.table(ftable(Personal.Loan,CreditCard),margin=1)
+
+
+# Probability table for Personal Loan vs Online
+prop.table(ftable(Personal.Loan,Online),margin=1)
+
+#i. P(CC = 1 | Loan = 1) (the proportion of credit card holders among the loan acceptors)
+Prob_i <- 91*100/(91+187)
+Prob_i
+
+#ii. P(Online=1|Loan=1)
+Prob_ii <- 179*100/(179+99)
+Prob_ii
+
+#iii. P(Loan = 1) (the proportion of loan acceptors)
+Prob_iii <- 278*100/(1930+792+187+91)
+Prob_iii
+
+#iv P(CC=1|Loan=0)
+Prob_iv <- 792*100/(1930 + 792)
+Prob_iv
+
+#v P(Online=1|Loan=0)
+Prob_v <- 1620*100/(1102+1620)
+Prob_v
+
+#vi. P(Loan = 0)
+Prob_vi <- 2772*100/(1930+792+187+91)
+Prob_vi
+
+detach(train_data)
+```
+
+```{r}
+
+#Question E. Use the quantities computed above to compute the naive Bayes probability P(Loan = 1 | CC = 1, Online = 1).
+
+naive_Bayes_prob <- (Prob_i*Prob_ii*Prob_iii)/((Prob_i*Prob_ii*Prob_iii)+(Prob_iv*Prob_v*Prob_vi))
+naive_Bayes_prob
+
+```
+
+```{r}
+#Question F. Compare this value with the one obtained from the pivot table in (B). Which is a more accurate estimate?
+
+#Upon comparing the estimates obtained from above B and E, Naive Bayes probability being slightly higher than the matrix-based probability and it doen not compute to any significant difference. The pivot table calculatios are more accurate as it donot consider the probabilities being independent, E uses probability for every count, whereas B uses a direct calculation based on a count.
+```
+
+```{r}
+
+#Question G. Which of the entries in this table are needed for computing P(Loan = 1 | CC = 1, Online = 1)? Run naive Bayes on the data. Examine the model output on training data, and find the entry that corresponds to P(Loan = 1 | CC = 1, Online = 1). Compare this to the number you obtained in (E).
+
+
+#Displaying Training dataset
+
+Train_naive <- naiveBayes(Personal.Loan ~ Online + CreditCard, data = train_data)
+Train_naive
+
+#While using the two tables made in step C makes it simple to understand how you're computing P(LOAN=1|CC=1,Online=1) using the Naive Bayes model, you can also quickly compute P(LOAN=1|CC=1,Online=1) using the pivot table made in step B.
+
+#While it is less than that calculated manually in step E, the probability predicted by the Naive Bayes model is the same as that projected by the prior techniques. This probability is closer to the one discovered in step B. This could be the case since step E's calculations are done manually, which leaves space for mistake when rounding fractions and results in approximations.
+
+## confusion matrix for train_data
+##Training
+prediction_class <- predict(Train_naive, newdata = train_data)
+confusionMatrix(prediction_class, train_data$Personal.Loan)
+
+###This model's low specificity offset its high sensitivity. In the absence of all genuine values from the reference, the model predicted that all values would be 0. Because of the enormous number of 0, even if the model missed all values of 1, it still yields 90.73% accuracy.
+
+```
+
+```

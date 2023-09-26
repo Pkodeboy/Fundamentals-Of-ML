@@ -1,0 +1,264 @@
+---
+title: "Assignemnt5 - Hierarchical Clustering"
+author: "Pranay Kumar Kodeboyina"
+date: "`r Sys.Date()`"
+output:
+  word_document: default
+  pdf_document: default
+  html_document: default
+---
+
+```{r}
+# importing the libraries and including knitr package
+library(knitr)
+# importing the libraries and including dendextend package
+library(dendextend)
+# importing the libraries and including factoextra package
+library(factoextra)
+# importing the libraries and including readr package
+library(readr)
+# importing the libraries and including cluster package
+library(cluster)
+# importing the libraries and including caret package
+library(caret)
+```
+
+
+```{r}
+#Including the library read r. to read the data set 
+library(readr)
+#Extracting the current working directory
+getwd()
+
+#setting seed
+set.seed(123)
+
+#Loading Cereals csv data Import the data set into R
+cereals <- read.csv("data/Cereals.csv", header = TRUE, sep = ",", stringsAsFactors = FALSE)
+
+#viewing the data frame to identify the numeric columns
+View(cereals)
+
+#Observing the first 10 observations of the data set
+head(cereals, n=10L)
+
+
+# Set row names to the Cereals column
+rownames(cereals) <- cereals[,1]
+
+#Returns the original vector of column names in their original order
+t(t(names(cereals)))
+
+#Only identifying the numeric data from the data frame columns 4 to 16
+cereals_df <- data.frame(cereals[,4:16])
+
+# Copy the original data to data frame two to perform normalization and fitting data set and scaling for a clustering technique
+cereals_df1 <- na.omit(cereals_df)
+
+# Using omit function to remove the NA values from the data set.
+cereals_df2 <- scale(cereals_df1)
+
+#The total number of observations after ommiting the NA data are 74 observations(3 omitted dute to empty data)
+head(cereals_df2)
+
+#viewing the data frame post normalization
+View(cereals_df2)
+
+library(factoextra)
+
+# Compute the Euclidean distance matrix
+distance <- dist(cereals_df2, method = "euclidean")
+
+# Visualize the distance matrix with the fviz_dist function
+fviz_dist(distance, 
+          gradient = list(low = "white", mid = "grey", high = "red"), show_labels = TRUE)
+```
+
+```{r}
+#Use the normalized data to do hierarchical clustering using the Euclidean Dist technique.
+hc1<-hclust(distance, method = "complete")
+
+#the dendogram plotting process.
+plot(hc1, hang = -1, cex = 0.6)
+
+
+# Q1. Apply hierarchical clustering to the data using Euclidean distance to the normalized measurements. Use Agnes to compare the clustering from single linkage, complete linkage, average linkage, and Ward. Choose the best method.
+
+#Comparing hierarchical clustering with different linkages
+
+#single method - Apply hierarchical clustering
+single_hc <- agnes(distance, method = "single")
+
+# Plot the resulting dendrogram with modified appearance
+pltree(single_hc, cex=0.6, hang = -1, main = "Dendogram of agnes Single Linkage Method - Cereal Ratings")
+
+#Complete method - Apply hierarchical clustering
+complete_hc <- agnes(distance, method = "complete")
+
+# Plot the resulting dendrogram with modified appearance
+pltree(complete_hc, cex=0.6, hang = -1, main = "Dendogram of agnes Complete Linkage Method - Cereal Ratings")
+
+#Average method - Apply hierarchical clustering
+average_hc <- agnes(distance, method = "average")
+
+# Plot the resulting dendrogram with modified appearance
+pltree(average_hc, cex=0.6, hang = -1, main = "Dendogram of agnes Average Linkage Method - Cereal Ratings")
+
+#Ward method - Apply hierarchical clustering
+ward_hc <- agnes(distance, method = "ward")
+
+# Plot the resulting dendrogram with modified appearance
+pltree(ward_hc, cex=0.6, hang = -1, main = "Dendogram of agnes Ward Linkage Method - Cereal Ratings")
+```
+
+```{r}
+#Compare Agglomeration coefficients
+# Single
+print(single_hc$ac)
+#Complete
+print(complete_hc$ac)
+#Average
+print(average_hc$ac)
+# WARD Best linkage method with the coefficient of 0.9049881
+print(ward_hc$ac)
+
+```
+
+```{r}
+
+# Q2. How many clusters would you choose? 
+
+#Choosing the optimal number of clusters using Elbow and Silhouette methods
+
+library(cowplot)
+
+Elbow_method <- fviz_nbclust(cereals_df2, kmeans, method = "wss",k.max = 10) +labs(subtitle = "Elbow Method - K")
+
+Silhouette <- fviz_nbclust(cereals_df2, kmeans, method = "silhouette", k.max = 6) + labs(subtitle = "Silhouette Method - K")
+
+plot_grid(Elbow_method, Silhouette, nrow = 1)
+
+
+#Using the Elbow method and Siloutee stat method to determine the optimal value of k which is k = 6 where there is maximum slope
+
+
+# Plot dendrogram with 6 clusters outlined
+plot(ward_hc, 
+     main = "AGNES - Ward Linkage Method using  6 Clusters Outlined",
+     xlab = "Cereal Type",
+     ylab = "Height - Dist",
+     cex.axis = 1,
+     cex = 0.50,)
+rect.hclust(ward_hc, k = 6, border = 2:7)
+
+# Cut the tree into 6 clusters
+clusters1 <- cutree(ward_hc, k = 6)
+cereals_df2_6 <- as.data.frame(cbind(cereals_df2,clusters1))
+
+```
+
+```{r}
+
+fviz_cluster(list(data = cereals_df2, cluster = clusters1))
+
+```
+
+```{r}
+#Creating
+#For the stability of the clusters, partitioning the data into A and B
+set.seed(123)
+
+cereal_df_A <-cereals_df1 [1:55,]
+cereal_df_B <-cereals_df1 [56:74,]
+
+```
+
+```{r}
+#Performing Hierarchical Clustering while considering k = 6.
+single_k6 <- agnes(scale(cereal_df_A), method = "single")
+complete_k6 <- agnes(scale(cereal_df_A), method = "complete")
+average_k6 <- agnes(scale(cereal_df_A), method = "average")
+ward_k6 <- agnes(scale(cereal_df_A), method = "ward")
+
+
+cbind(single=single_k6$ac , complete=complete_k6$ac , average= average_k6$ac , ward= ward_k6$ac)
+
+pltree(ward_k6, cex = 0.6, hang = -1, main = "Dendogram of Agnes with Partitioned Data (Using Ward method)")
+
+rect.hclust(ward_k6, k = 6, border = 2:7)
+
+cut_2 <- cutree(ward_k6, k = 6)
+
+```
+
+
+```{r}
+#the centroids are calculated.
+Sb_result <- as.data.frame(cbind(cereal_df_A, cut_2))
+
+Sb_result[Sb_result$cut_2==1,]
+one_centroid <- colMeans(Sb_result[Sb_result$cut_2==1,])
+
+Sb_result[Sb_result$cut_2==2,]
+two_centroid <- colMeans(Sb_result[Sb_result$cut_2==2,])
+
+Sb_result[Sb_result$cut_2==3,]
+three_centroid <- colMeans(Sb_result[Sb_result$cut_2==3,])
+
+Sb_result[Sb_result$cut_2==4,]
+four_centroid <- colMeans(Sb_result[Sb_result$cut_2==4,])
+
+
+centroids <- rbind(one_centroid, two_centroid, three_centroid, four_centroid)
+
+x2 <- as.data.frame(rbind(centroids[,-14], cereal_df_B))
+```
+```{r}
+#figuring out the Dist.
+Dist_1 <- get_dist(x2)
+Matrix_1 <- as.matrix(Dist_1)
+dataframe1 <- data.frame(data=seq(1,nrow(cereal_df_B),1), Clusters = rep(0,nrow(cereal_df_B)))
+for(i in 1:nrow(cereal_df_B)) 
+  {dataframe1[i,2] <- which.min(Matrix_1[i+4, 1:4])}
+dataframe1
+
+cbind(cereals_df2_6$clusters1[56:74], dataframe1$Clusters)
+table(cereals_df2_6$clusters1[56:74] == dataframe1$Clusters)
+
+#Since we are getting 15 FALSE and 4 TRUE, we can conclude that the model is partially stable.
+
+```
+```{r}
+#The elementary public schools would like to choose a set of cereals to include in their daily cafeterias. Every day a different cereal is offered, but all cereals should support a healthy diet. For this goal, you are requested to find a cluster of “healthy cereals.”Should the data be normalized? If not, how should they be used in the cluster analysis?
+
+#Clustering Healthy SB_Cereals.
+
+Healthy_SB_Cereals <- cereals
+
+#omitting the empty observations
+Healthy_SB_Cereals_NA <- na.omit(Healthy_SB_Cereals)
+
+#binding the clusters
+clust <- cbind(Healthy_SB_Cereals_NA, clusters1)
+
+clust[clust$clusters1==1,]
+clust[clust$clusters1==2,]
+clust[clust$clusters1==3,]
+clust[clust$clusters1==4,]
+```
+
+```{r}
+#Mean ratings are used to select the best cluster.
+mean(clust[clust$clusters1==1,"rating"])
+mean(clust[clust$clusters1==2,"rating"])
+mean(clust[clust$clusters1==3,"rating"])
+mean(clust[clust$clusters1==4,"rating"])
+
+# Based on the mean ratings for each cluster, it seems that cluster 1 has the highest mean rating at 73.8, Therefore, Group 1 may be considered of as the cluster for a healthy diet.
+
+```
+
+
+
+
+

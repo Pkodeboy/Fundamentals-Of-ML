@@ -1,0 +1,119 @@
+---
+title: "Assignment 1"
+author: "Pranay Kumar Kodeboyina"
+date: "`r Sys.Date()`"
+output: word_document
+---
+
+install.packages("tidyverse")
+install.packages("pillar")
+install.packages ("gmodels"); install.packages("MASS")
+library (gmodels);
+
+
+
+
+```{r} 
+
+# Data set source :https://www.kaggle.com/datasets/rajeshrampure/black-friday-sale
+
+#Printing the data sets using head and tail command to get the first 10 observations
+
+#setting the working directory to the Assignment Folder
+setwd("/Users/kodeboyina/Documents/Kent State/Sem1/Fundamentals of ML/Assigment1")
+
+#Loading Black Friday sales csv data Import the data set into R
+Friday_data <- read.csv("data/train.csv")
+
+#Loading the first 10 rows data to print
+head(Friday_data, 10)
+
+#Loading the Last 10 rows to print
+tail(Friday_data, 10)
+```
+
+
+```{r}
+# Providing the statistics for the Quantiative and Qualitative variables
+
+# Reading the data type for the purchase varible
+class(Friday_data$Purchase)
+# Mean for the purchase amount Quantitative Variable
+print(paste(mean(Friday_data$Purchase), " - Mean purchase amount in $ for black Friday sale"))
+print(paste(median(Friday_data$Purchase, na.rm = FALSE), " - Median amount in $ for black Friday sale"))
+
+#Minimum Purchase amount in the Black Friday sale
+min(Friday_data$Purchase)
+
+#Maximum Purchase amount in the Black Friday sale
+max(Friday_data$Purchase)
+```
+
+
+
+```{r}
+# Displaying the counts for few Variables and glimse of the data set
+
+library(dplyr)
+#Counting the gender variable
+dplyr:: count(Friday_data, Gender)
+
+#Glimse function provide the summary of the data with the data type and categories
+glimpse(Friday_data)
+
+```
+
+
+
+```{r}
+
+#Cross Tabulation for the Sample space across differnt age groups vs Gender and displaying the row and column percentages
+
+
+library(gmodels)
+CrossTable(Friday_data$Gender, Friday_data$Age, prop.r=TRUE, prop.c=TRUE)
+
+```
+
+```{r}
+#Transformation of the categorical Age Variable to Double using mutate function by considering the midpoints as factors for age
+
+Friday_data %>% mutate(Age_1 = recode(Age,  
+"0-17" = 17,
+"18-25" = 21.5,
+"26-35" = 30.5,
+"36-45" = 40.5,
+"46-50" = 48,
+"51-55" = 53,
+"55+" = 55,
+.default = 0.0))  %>%
+#displaying the age for the below variable
+  select(User_ID, Age, Age_1)
+   
+#convert character vector to numeric vector
+Age_numeric <- as.double(Friday_data$Age_1)  
+
+#convert character vector to numeric vector for occupation
+Occupation_numeric <- as.numeric(Friday_data$Occupation)  
+
+#Displaing the Numeric data
+Occupation_numeric[1:10]
+```
+
+
+```{r}
+#Histogram indicating the puchase amount with the frequency of purchases
+hist(Friday_data$Purchase,
+     main="Purchases During the BLACK FRIDAY SALE",
+     xlab="Amount ($)", ylab = "Number of Purchases",
+     col="blue")
+
+```
+
+
+```{r}
+#Scatter Plot indicating the Occupation vs the Purchase amount 
+plot(Friday_data$Occupation, Friday_data$Purchase,main="Purchase Amount with Occupation",
+     xlab = "Occupation",
+     ylab = "Purchase Amount in $")
+```
